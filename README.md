@@ -3,4 +3,4 @@
 
 from https://perso.crans.org/calves/hnt/
 
-Updated to work with ghc 8.6.1
+Version 0.2.1 updated to work with ghc 8.6.1
