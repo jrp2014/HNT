@@ -37,6 +37,28 @@ Library
                      , Hnt.Utils.Parser
                      , Hnt.Commands
 
+-- Other-Modules:        Control.Monad.ContState
+--                     , Control.Monad.ContState.CS
+--                     , Control.Monad.ContState.Lib
+--                     , Control.Monad.Nominal.Env
+--                     , Control.Monad.Nominal.Sol
+--                     , Control.Monad.Zipper
+--                     , Data.Nominal.Env
+--                     , Data.Nominal.FrsCtxt
+--                     , Data.Nominal.Perm
+--                     , Data.Nominal.Set
+--                     , Data.Nominal.Term
+--                     , Data.Nominal.Term.Term
+--                     , Data.Nominal.Term.Zipper
+--                     , Data.Zipper
+--                     , Data.Zipper.Direction
+--                     , Data.Zipper.Zipper
+--                     , Hnt.Commands
+--                     , Hnt.Utils
+--                     , Hnt.Utils.Parser
+--                     , Nominal.Matching
+--                     , Nominal.Rewriting
+
 Executable hnt
  Build-Depends:      base, parsec, mtl
  Main-is:            Main.hs

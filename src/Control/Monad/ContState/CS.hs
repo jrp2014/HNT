@@ -10,8 +10,14 @@ import Control.Monad.Identity
 
 newtype CS r l m a = CS { rCS :: (a -> l m r -> m r) -> l m r -> m r }
 
+instance Functor (CS r l m) where
+  fmap = liftM
+
+instance Applicative (CS r l m) where
+ pure x     = CS $ ($ x)
+ (<*>) = ap 
+
 instance Monad (CS r l m) where
- return x     = CS $ ($ x)
  (CS m) >>= f = CS $ \k -> m (\a -> rCS (f a) k)
 
 instance MonadTrans (CS r l) where

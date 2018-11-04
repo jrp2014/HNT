@@ -19,8 +19,14 @@ import Data.Monoid
 
 newtype OutputT o m a = OutputT { runOutputT :: m (a, o) }
 
+instance (Monad m, Monoid o) => Functor (OutputT o m) where
+  fmap = liftM
+
+instance (Monad m, Monoid o) => Applicative (OutputT o m) where
+  pure a = OutputT (return (a, mempty))
+  (<*>) = ap
+
 instance (Monad m, Monoid o) => Monad (OutputT o m) where
-  return a = OutputT (return (a, mempty))
   m >>= f = OutputT (do (a,o ) <- runOutputT m
                         (b,o') <- runOutputT (f a)
                         return (b, mappend o o')
@@ -58,8 +64,14 @@ runListL = runListT . lreify
 
 newtype MaybeT m a = MaybeT { runMaybeT :: m (Maybe a) }
 
+instance (Monad m) => Functor (MaybeT m) where
+  fmap = liftM
+
+instance (Monad m) => Applicative (MaybeT m) where
+  pure a = MaybeT (return (Just a))
+  (<*>) = ap
+
 instance (Monad m) => Monad (MaybeT m) where
-  return a = MaybeT (return (Just a))
   b >>= f = MaybeT (runMaybeT b >>= \m -> case m of
                                            Nothing -> return Nothing
                                            Just a  -> runMaybeT (f a))
@@ -180,8 +192,14 @@ catchErrorLn f x h = join $ f $ catchErrorL (return x) (return . h)
 newtype Id m a = Id { rId :: m a }
  deriving (Eq,Ord,Show,Read)
 
+instance (Monad m) => Functor (Id m) where
+  fmap = liftM
+
+instance (Monad m) => Applicative (Id m) where
+ pure  = Id . return
+ (<*>) = ap
+
 instance (Monad m) => Monad (Id m) where
- return  = Id . return
  m >>= f = Id $ (rId m) >>= (rId . f)
 
 instance MonadTrans Id where
