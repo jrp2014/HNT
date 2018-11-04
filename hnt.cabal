@@ -1,0 +1,43 @@
+Cabal-Version: >= 1.2
+Name:                hnt
+Version:             0.2.1
+License:             GPL
+License-file:        LICENSE
+Author:              Christophe Calves
+Homepage:            http://dcs.kcl.ac.uk/pg/calves/
+Category:            Testing
+Synopsis:            A Haskell Nominal Toolkit
+Description:         A toolkit of nominal techniques
+Maintainer:          Christophe Calves <Christophe.Calves@kcl.ac.uk>
+--Tested-With:         ghc-6.8.1
+Build-Type:          Simple
+
+Library
+ Build-Depends:      base, parsec, mtl, containers
+ Hs-Source-Dirs:     src
+ Exposed-Modules:      Data.Zipper
+                     , Data.Zipper.Zipper
+                     , Data.Zipper.Direction
+                     , Data.Nominal.Term
+                     , Data.Nominal.Term.Zipper
+                     , Data.Nominal.Term.Term  
+                     , Data.Nominal.Set        
+                     , Data.Nominal.Env        
+                     , Data.Nominal.Perm       
+                     , Data.Nominal.FrsCtxt    
+                     , Nominal.Matching
+                     , Nominal.Rewriting
+                     , Control.Monad.ContState
+                     , Control.Monad.ContState.Lib
+                     , Control.Monad.ContState.CS
+                     , Control.Monad.Zipper
+                     , Control.Monad.Nominal.Env
+                     , Control.Monad.Nominal.Sol
+                     , Hnt.Utils
+                     , Hnt.Utils.Parser
+                     , Hnt.Commands
+
+Executable hnt
+ Build-Depends:      base, parsec, mtl
+ Main-is:            Main.hs
+ Hs-Source-Dirs:     src
