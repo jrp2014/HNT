@@ -22,17 +22,17 @@ import Control.Monad
 import Control.Monad.Trans
 
 printSeq :: [a] -> [a] -> [a] -> [[a]] -> [a]
-printSeq open close sep sl = open ++ (printSeq' sl)
+printSeq open close sep sl = open ++ printSeq' sl
   where printSeq'  []   = close
         printSeq'  [x]  = x ++ close
-        printSeq' (x:l) = x ++ sep ++ (printSeq' l)
+        printSeq' (x:l) = x ++ sep ++ printSeq' l
 
 
 ignoreR :: (Monad t) => t t2 -> t t1 -> t t2
 ignoreR m n = do r <- m ; n ; return r
 
 localM :: (Monad t) => t t1 -> (t1 -> t t2) -> t t3 -> t t3
-localM fdo fundo = \k -> do sv <- fdo ; ignoreR k (fundo sv)
+localM fdo fundo k = do sv <- fdo ; ignoreR k (fundo sv)
 
 
 
@@ -44,9 +44,7 @@ lprint = liftIO . print
 while :: (a -> Bool) -> (a -> a) -> a -> a
 while predicate f = while'
   where
-    while' a = case predicate a of
-                        True  -> while' (f a)
-                        False -> a
+    while' a = if predicate a then while' (f a) else a
 
 -- * STATE GEN
 
@@ -54,12 +52,10 @@ whileM :: (Monad m) => (a -> m Bool) -> (a -> m a) -> a -> m a
 whileM predicate f = whileM'
   where
     whileM' a = do b <- predicate a
-                   case b of
-                      True  -> f a >>= whileM'
-                      False -> return a
+                   if b then f a >>= whileM' else return a
 
 doWhileM :: (Monad m) => (a -> m Bool) -> (a -> m a) -> a -> m a
-doWhileM predicate f a = (f a) >>= whileM predicate f
+doWhileM predicate f a = f a >>= whileM predicate f
 
 loopM :: (Monad m) => (a -> m a) -> a -> m b
 loopM f = loopM'
@@ -75,7 +71,7 @@ ifM predicate thenM elseM a = do b <- predicate a
 
 
 whenM :: (Monad m) => m Bool -> m () -> m ()
-whenM mb mu = mb >>= (\b -> when b mu) 
+whenM mb mu = mb >>= (`when` mu)
 
 eitherUntilM :: (Monad m) => (a -> m c) -> m (Either a b) -> m b
 eitherUntilM err f = aux

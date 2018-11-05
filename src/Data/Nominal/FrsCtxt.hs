@@ -17,16 +17,16 @@ newtype FrsCtxt v a = FrsCtxt { unFrsCtxt :: Map.Map v (Set.Set a) }
 
 instance (Show v, Show a) => Show (FrsCtxt v a) where
   show (FrsCtxt m) =
-     printSeq "" "" " " $ map (\(v,s) -> (showAtmSet s) ++ "#v:" ++ (show v)) (Map.toList m)
+     printSeq "" "" " " $ map (\(v,s) -> showAtmSet s ++ "#v:" ++ show v) (Map.toList m)
 
-showAtmSet :: (Show a) => Set.Set a -> [Char]
-showAtmSet s = printSeq "{" "}" " " (map (\a -> "a:" ++ (show a)) (Set.elems s)) 
+showAtmSet :: (Show a) => Set.Set a -> String
+showAtmSet s = printSeq "{" "}" " " (map (\a -> "a:" ++ show a) (Set.elems s))
 
-parse'constr :: (ParsecRead a, ParsecRead b, Ord b) => GenParser Char st (a, (Set.Set b))
+parse'constr :: (ParsecRead a, ParsecRead b, Ord b) => GenParser Char st (a, Set.Set b)
 parse'constr = ( do s <- parse'set (string "a:" >> parsecRead)
                     spaces >> char '#' >> spaces
                     v <- string "v:" >> parsecRead
-                    return (v, (Set.fromList s))
+                    return (v, Set.fromList s)
                ) <?> "Constaint"
 
 
@@ -47,10 +47,10 @@ empty :: FrsCtxt v a
 empty = FrsCtxt Map.empty
 
 frsVarSet :: (Ord v, Ord a) => v -> FrsCtxt v a -> Set.Set a
-frsVarSet v = (Map.findWithDefault Set.empty v) . unFrsCtxt
-                                 
+frsVarSet v = Map.findWithDefault Set.empty v . unFrsCtxt
+
 addFrsCtxt :: (Ord v, Ord a) => v -> Set.Set a -> FrsCtxt v a -> FrsCtxt v a
-addFrsCtxt v s (FrsCtxt fc) = FrsCtxt $ Map.insertWith (Set.union) v s fc
+addFrsCtxt v s (FrsCtxt fc) = FrsCtxt $ Map.insertWith Set.union v s fc
 
 mergeFrsCtxt :: (Ord v, Ord a) => FrsCtxt v a -> FrsCtxt v a -> FrsCtxt v a
 mergeFrsCtxt (FrsCtxt fc1) (FrsCtxt fc2) = FrsCtxt $ Map.unionWith Set.union fc1 fc2

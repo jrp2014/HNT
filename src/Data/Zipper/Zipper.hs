@@ -1,4 +1,4 @@
-{-# LANGUAGE	DeriveDataTypeable, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances #-}
 -- | This is the Zipper Module inspired by
 -- | /Generic Zipper and its applications/ by Oleg Kiselyov and al.
 -- | Available at <http://okmij.org/ftp/Computation/Continuations.html#zipper>
@@ -25,13 +25,13 @@ data Zipper term dir m = Zipper { -- | The Path of the current subterm
 
 
 -- | Show a path ala Unix, the list is reversed !
-showPath :: (Show a) => [a] -> [Char]
-showPath l = "/" ++ (foldl (++) "" $ map (\d -> "/" ++ (show d)) $ reverse l)
+showPath :: (Show a) => [a] -> String
+showPath l = "/" ++ concatMap (\ d -> "/" ++ show d) (reverse l)
 
 instance (Show dir, Show term) => Show (Zipper term dir m) where
   show (Zipper p t _) =        "Zipper "
-                      ++     " (term = " ++ (show t)
-                      ++    ") (path = " ++ (showPath p)
+                      ++     " (term = " ++ show t
+                      ++    ") (path = " ++ showPath p
                       ++    ")"
 
 
@@ -73,7 +73,7 @@ class (Eq dir) => ZipperAble term dir where
   -- |                                            (PairRight , (u , (\x -> Pair  s x)))
   -- |                                          ]
   -- |               possibleDirs (Modal m s) = [ (ModalDown , (s , (\x -> Modal m x))) ]
-  possibleDirs :: term -> [(dir , (term , (term -> term)))]
+  possibleDirs :: term -> [(dir , (term , term -> term))]
 
 
 -- Layers : Cont
@@ -99,24 +99,24 @@ class (Eq dir) => ZipperAble term dir where
                          Move  Down      -> findOneDown (possibleDirs s) >> loop p s
                          Move (DownTo d) -> goIn d p s
                          Move  Next      -> do possdir <- getL
-                                               oldposs <- inc  $ getL
+                                               oldposs <- inc getL
                                                findNext (possdir : oldposs)
                                                loop p s
- 
+
           goIn d p u = case lookup d (possibleDirs u) of
                          Nothing    -> return u
                          Just (s,f) -> do newpossdir <- getsL $ filter (\(x,_) -> x /= d)
-                                          oldstack   <- inc  $ getL
+                                          oldstack   <- inc getL
                                           inc  $ pushStateL newpossdir
                                           putL $ possibleDirs s
                                           u' <- loop (d : p) s
-                                          putL $ newpossdir
+                                          putL newpossdir
                                           inc  $ putL oldstack
                                           loop p $ f u'
 
-          getReq p s = do x <- inc2 $ popStateL
+          getReq p s = do x <- inc2 popStateL
                           case x of
-                           Nothing  -> inc3 $ shiftL (\k -> return $ Zipper p s k)
+                           Nothing  -> inc3 $ shiftL (return . Zipper p s)
                            Just   d -> return (Move d)
 
 
@@ -131,4 +131,4 @@ class (Eq dir) => ZipperAble term dir where
                                  else do inc2 $ appendStateL Up
                                          findNext l
 
-          runStackL m = runStateL [] m >>= return . fst
+          runStackL m = fst <$> runStateL [] m

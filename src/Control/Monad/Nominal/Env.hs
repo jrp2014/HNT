@@ -12,7 +12,7 @@ image :: (Ord a) => a -> CS r (ExtB l e (StateT (E.Env a))) m a
 image    a = getsL $ flip E.image a
 
 perm :: CS r (ExtB l e (StateT (E.Env a))) m (Perm a)
-perm       = getsL $ E.perm
+perm       = getsL E.perm
 
 
 swapList :: (Ord a) => CS r (ExtB l e (StateT (E.Env a))) m [(a, a)]
@@ -42,10 +42,10 @@ localSwapL a b m = do swapL a b
 
 
 isFresh :: (Ord a) => a -> CS r (ExtB l e (StateT (E.Env a))) m Bool
-isFresh  a = getsL $ (E.isFresh a)
+isFresh  a = getsL (E.isFresh a)
 
 freshSet :: CS r (ExtB l e (StateT (E.Env a))) m (Set.Set a)
-freshSet = getsL $ E.freshSet
+freshSet = getsL E.freshSet
 
 
 setFresh :: (Ord a) => Bool -> a -> CS r (ExtB l e (StateT (E.Env a))) m ()
@@ -69,6 +69,6 @@ localSetFreshS = flip $ Set.fold (uncurry localSetFresh)
 
 
 runEnvL :: (Ord a) => CS r (ExtB l a1 (StateT (E.Env a))) m a1 -> CS r l m a1
-runEnvL m = (runStateL (E.empty) m) >>= return . fst
+runEnvL m = fst <$> runStateL E.empty m
 
 

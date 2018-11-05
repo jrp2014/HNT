@@ -1,5 +1,5 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances, MultiParamTypeClasses, FlexibleContexts #-}
-module Nominal.Rewriting where
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses,
+  FlexibleContexts #-}module Nominal.Rewriting where
 
 import Hnt.Utils.Parser
 import Text.ParserCombinators.Parsec
@@ -14,6 +14,8 @@ import Control.Monad.ContState
 import Control.Monad.Nominal.Sol
 
 import Nominal.Matching
+import Data.Maybe
+
 
 -- * Rewriting Data Structures
 
@@ -39,36 +41,34 @@ data CtxtTerm atm cst var = CtxtTerm { -- | the context
 
 
 instance (Show atm, Show cst, Show var) => Show (Rule atm cst var) where
-  show (Rule fc l r) = (show fc) ++ " |- " ++ (show l) ++ " -> " ++ (show r) 
+  show (Rule fc l r) = show fc ++ " |- " ++ show l ++ " -> " ++ show r
 
 
 instance (Show atm, Show cst, Show var) => Show (CtxtTerm atm cst var) where
-  show (CtxtTerm ctxt term) = (show ctxt) ++ " |- " ++ (show term)
+  show (CtxtTerm ctxt term) = show ctxt ++ " |- " ++ show term
 
 
 parse'rule :: (Ord var, Ord atm, ParsecRead atm, ParsecRead cst, ParsecRead var) =>
                  GenParser Char st (Rule atm cst var)
-parse'rule =  (do mc <- optionMaybe (do c <- FC.parse'frsCtxt 
+parse'rule =  (do mc <- optionMaybe (do c <- FC.parse'frsCtxt
                                         spaces >> string "|-" >> spaces
                                         return c
                                     )
-                  let c = maybe FC.empty id mc
+                  let c = fromMaybe FC.empty mc
                   t <- parse'term
                   spaces >> string "->" >> spaces
-                  u <- parse'term
-                  return $ Rule c t u
+                  Rule c t <$> parse'term
               ) <?> "Rule"
 
 
 parse'ctxtTerm :: (Ord var, Ord atm, ParsecRead atm, ParsecRead cst, ParsecRead var) =>
                  GenParser Char st (CtxtTerm atm cst var)
-parse'ctxtTerm =  (do mc <- optionMaybe (do c <- FC.parse'frsCtxt 
+parse'ctxtTerm =  (do mc <- optionMaybe (do c <- FC.parse'frsCtxt
                                             spaces >> string "|-" >> spaces
                                             return c
                                         )
-                      let c = maybe FC.empty id mc
-                      t <- parse'term
-                      return $ CtxtTerm c t
+                      let c = fromMaybe FC.empty mc
+                      CtxtTerm c <$> parse'term
                   ) <?> "Term in Context"
 
 
@@ -84,14 +84,14 @@ instance (Ord atm, Ord var, ParsecRead atm, ParsecRead cst, ParsecRead var) => P
 -- * Rewriting Functions
 
 rewrite :: (Ord t1, Ord t, Show t2, Eq t2) => Rule t1 t2 t -> Term t1 t2 t
-           -> CS r (ExtB (ExtB l e1 (ExceptT [Char])) e (StateT (FC.FrsCtxt t t1))) m (Term t1 t2 t)
+           -> CS r (ExtB (ExtB l e1 (ExceptT String)) e (StateT (FC.FrsCtxt t t1))) m (Term t1 t2 t)
 rewrite (Rule fc l r) t = do frs <- getL
                              s   <- inc $ match'check (fc , l) (frs , t)
-                             substituteM (return . (substValuef s)) r
+                             substituteM (return . substValuef s) r
 
 rewrite'empty :: (Ord t1, Ord t, Show t2, Eq t2) =>
                  Rule t1 t2 t
                  -> Term t1 t2 t
-                 -> CS r (ExtB l e1 (ExceptT [Char])) m (Term t1 t2 t)
+                 -> CS r (ExtB l e1 (ExceptT String)) m (Term t1 t2 t)
 rewrite'empty rl t = runFrsCtxtL $ rewrite rl t
 

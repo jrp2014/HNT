@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, DeriveDataTypeable #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Data.Nominal.Term.Zipper where
 
 import Data.Nominal.Term.Term
@@ -30,7 +30,7 @@ instance ParsecRead TermDir where
 
 instance ZipperAble (Term atm cst var) TermDir where
   possibleDirs (Leaf    _) = []
-  possibleDirs (Modal m s) = [(ModalDown , (s , (\x -> Modal m x))) ]
-  possibleDirs (Pair  s u) = [(PairLeft  , (s , (\x -> Pair  x u))) ,
-                              (PairRight , (u , (\x -> Pair  s x)))
+  possibleDirs (Modal m s) = [(ModalDown , (s , Modal m)) ]
+  possibleDirs (Pair  s u) = [(PairLeft  , (s , (`Pair` u))) ,
+                              (PairRight , (u , Pair  s))
                              ]

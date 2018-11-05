@@ -1,4 +1,4 @@
-{-# LANGUAGE	DeriveDataTypeable #-}
+
 
 -- | Nominal Terms
 module Data.Nominal.Term.Term
@@ -8,6 +8,7 @@ import Text.ParserCombinators.Parsec
 import Hnt.Utils.Parser
 
 import Control.Monad.Identity
+import Data.Maybe
 
 -- * Terms
 
@@ -17,9 +18,9 @@ data Leaf atm cst var = Atm atm -- ^ an atom
   deriving (Eq,Ord)
 
 instance (Show atm, Show cst, Show var) => Show (Leaf atm cst var) where
-  show (Atm a) = "a:" ++ (show a)
-  show (Var v) = "v:" ++ (show v)
-  show (Cst c) = "c:" ++ (show c)
+  show (Atm a) = "a:" ++ show a
+  show (Var v) = "v:" ++ show v
+  show (Cst c) = "c:" ++ show c
 
 
 data Modal atm = Swap atm atm -- ^ a swapping
@@ -27,21 +28,21 @@ data Modal atm = Swap atm atm -- ^ a swapping
   deriving (Eq,Ord)
 
 instance (Show atm) => Show (Modal atm) where
-  show (Abs    a) = "[a:" ++ (show a) ++ "]"
-  show (Swap a b) = "(a:" ++ (show a) ++ " " ++ "a:" ++ (show b) ++ ")"
+  show (Abs    a) = "[a:" ++ show a ++ "]"
+  show (Swap a b) = "(a:" ++ show a ++ " " ++ "a:" ++ show b ++ ")"
 
 
 -- | Nominal Terms Data Structure
-data Term atm cst var 	= Leaf (Leaf atm cst var)                           -- ^ a leaf
-			| Pair (Term atm cst var)	(Term atm cst var)  -- ^ a pair
-			| Modal (Modal atm)		(Term atm cst var)  -- ^ a modal
+data Term atm cst var   = Leaf (Leaf atm cst var)                           -- ^ a leaf
+                        | Pair (Term atm cst var)       (Term atm cst var)  -- ^ a pair
+                        | Modal (Modal atm)             (Term atm cst var)  -- ^ a modal
   deriving (Eq,Ord)
 
 
 instance (Show atm, Show cst, Show var) => Show (Term atm cst var) where
  show (Leaf    l) = show l
- show (Pair  t u) = "("  ++ (show t) ++ "," ++ (show u) ++ ")"
- show (Modal m t) = (show m) ++ (show t)
+ show (Pair  t u) = "("  ++ show t ++ "," ++ show u ++ ")"
+ show (Modal m t) = show m ++ show t
 
 
 -- ** Term Construction
@@ -65,7 +66,6 @@ pair :: Term atm cst var -> Term atm cst var -> Term atm cst var
 pair = Pair
 
 -- ** Parsing functions
-
 parse'atm :: (ParsecRead atm) => GenParser Char st (Leaf atm cst var)
 parse'atm = (string "a:" >> parsecRead >>= return . Atm ) <?> "atom"
 
@@ -115,8 +115,7 @@ parse'tmodal :: (ParsecRead atm, ParsecRead cst, ParsecRead var) =>
                    GenParser Char st (Term atm cst var)
 parse'tmodal = (do m <- parse'modal
                    spaces
-                   t <- parse'term
-                   return $ Modal m t
+                   Modal m <$> parse'term
                ) <?> "term-modal"
 
 parse'pair :: (ParsecRead atm, ParsecRead cst, ParsecRead var) =>
@@ -130,10 +129,10 @@ parse'pair =  (do char '('
                   char ')'
                   return $ Pair t u
               ) <?> "Pair"
- 
+
 parse'term :: (ParsecRead atm, ParsecRead cst, ParsecRead var) =>
                      GenParser Char st (Term atm cst var)
-parse'term =     (parse'leaf  >>= return . Leaf)
+parse'term =     (Leaf <$> parse'leaf)
              <|> try parse'tmodal
              <|> parse'pair
 
@@ -156,10 +155,10 @@ instance (ParsecRead atm, ParsecRead cst, ParsecRead var) => ParsecRead (Term at
 substituteM :: (Monad m) =>
           (var -> m (Maybe (Term atm cst var))) -> Term atm cst var -> m (Term atm cst var)
 substituteM f = substM'
-  where f' v = f v >>= return . (maybe (var v) id) 
+  where f' v = fromMaybe (var v) <$> f v
 
         substM' (Leaf (Var v)) = f' v
-        substM' (Modal m t   ) = substM' t >>= (\x -> return $ Modal m x)
+        substM' (Modal m t   ) = Modal m <$> substM' t
         substM' (Pair  s t   ) = do s' <- substM' s
                                     t' <- substM' t
                                     return $ Pair s' t'
@@ -168,4 +167,4 @@ substituteM f = substM'
 
 -- | "substitute f t" substitute any variable v by (f v) in t. f is a pure function
 substitute :: (var -> Maybe (Term atm cst var)) -> Term atm cst var -> Term atm cst var
-substitute f = runIdentity . (substituteM $ Identity . f)
+substitute f = runIdentity . substituteM (Identity . f)

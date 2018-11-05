@@ -9,7 +9,7 @@ import Control.Monad.ContState
 import Control.Monad.State
 
 runFrsCtxtL :: CS r (ExtB l a1 (StateT (FC.FrsCtxt v a))) m a1 -> CS r l m a1
-runFrsCtxtL m = (runStateL (FC.empty) m) >>= return . fst
+runFrsCtxtL m = fst <$> runStateL FC.empty m
 
 
 isInFrsCtxt :: (Ord a, Ord v) => v -> Set.Set a
@@ -33,4 +33,4 @@ addSubst :: (Ord v) => v -> t -> CS r (ExtB l e (StateT (Subst v t))) m ()
 addSubst v t = modifyL $ Map.insert v t
 
 runSubstL :: CS r (ExtB l a1 (StateT (Subst v t))) m a1 -> CS r l m a1
-runSubstL m = (runStateL (Map.empty) m) >>= return . fst
+runSubstL m = fst <$> runStateL Map.empty m

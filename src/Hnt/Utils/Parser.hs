@@ -10,27 +10,26 @@ class ParsecRead t where
 
 instance ParsecRead Integer where
   parsecRead = do s <- option False (char '-' >> spaces >> return True)
-                  n <- many1 digit >>= return . read
+                  n <- read <$> many1 digit
                   if s
                    then return $ - n
-                   else return $   n
+                   else return n
 
 
 instance (ParsecRead t) => ParsecRead [t] where
  parsecRead = parse'list parsecRead
 
 
-word :: GenParser Char st [Char]
+word :: GenParser Char st String
 word   = many1 alphaNum <?> "identifier"
 
 
 parse'seq :: GenParser Char st t -> GenParser Char st [t]
-parse'seq p = ( option [] ( do x <- p
-                               spaces
-                               l <- option [] ((parse'seq p) <?> "End of Seq")
-                               return (x : l)
-                          )
-              ) <?> "Sequence" 
+parse'seq p = option [] ( do x <- p
+                             spaces
+                             l <- option [] (parse'seq p <?> "End of Seq")
+                             return (x : l)
+                          ) <?> "Sequence"
 
 
 -- parse'seq :: GenParser Char st t -> GenParser Char st [t]
@@ -58,7 +57,7 @@ parse'set p = ( do char '{' >> spaces
               ) <?> "Set"
 
 
-parseWithSpace :: GenParser Char () a -> [Char] -> Either ParseError a
+parseWithSpace :: GenParser Char () a -> String -> Either ParseError a
 parseWithSpace parser = parse (do spaces
                                   t <- parser
                                   spaces
@@ -68,7 +67,7 @@ parseWithSpace parser = parse (do spaces
 
 
 parse'read :: GenParser Char () t -> String -> [(t, String)]
-parse'read parser = readParen False $ (either (const $ []) id) . (parse parser' "")
+parse'read parser = readParen False $ either (const []) id . parse parser' ""
  where
   parser' = do spaces
                l <- parser

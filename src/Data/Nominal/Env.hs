@@ -32,7 +32,7 @@ swapR :: (Ord a) => a -> a -> Env a -> Env a
 swapR a b (Env p s) = Env (P.swapR a b p) (NS.swap a b s)
 
 isFresh :: (Ord a) => a -> Env a -> Bool
-isFresh a = (S.member a) . freshSet
+isFresh a = S.member a . freshSet
 
 setFresh :: (Ord a) => Bool -> a -> Env a -> Env a
 setFresh b a (Env p s) = Env p (NS.setMember b a s)

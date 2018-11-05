@@ -60,6 +60,6 @@ Library
 --                     , Nominal.Rewriting
 
 Executable hnt
- Build-Depends:      base, parsec, mtl
+ Build-Depends:      base, parsec, mtl, transformers
  Main-is:            Main.hs
  Hs-Source-Dirs:     src

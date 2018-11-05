@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, RankNTypes, ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, RankNTypes, ScopedTypeVariables, LambdaCase #-}
 -- | This module is inspired by the slides
 -- | /Monadic Reflection in Haskell/ by Andrzej Filinski
 -- | Available at <http://cs.ioc.ee/mpc-amast06/msfp/filinski-slides.pdf>
@@ -72,12 +72,12 @@ instance (Monad m) => Applicative (MaybeT m) where
   (<*>) = ap
 
 instance (Monad m) => Monad (MaybeT m) where
-  b >>= f = MaybeT (runMaybeT b >>= \m -> case m of
+  b >>= f = MaybeT (runMaybeT b >>= \case 
                                            Nothing -> return Nothing
                                            Just a  -> runMaybeT (f a))
 
 instance MonadTrans MaybeT where
- lift m = MaybeT $ m >>= return . Just
+ lift m = MaybeT $ Just <$> m
 
 instance Monad m => MonadL MaybeT m
 
@@ -88,9 +88,9 @@ runMaybeL :: CS r (ExtB l a MaybeT) m a -> CS r l m (Maybe a)
 runMaybeL = runMaybeT . lreify
 
 handleL :: CS r (ExtB l a MaybeT) m a -> CS r l m a -> CS r l m a
-handleL t1 t2 = (runMaybeL $ t1) >>= \m -> case m of
-                                            Just a  -> return a
-                                            Nothing -> t2
+handleL t1 t2 = runMaybeL t1 >>= \case
+                                        Just a  -> return a
+                                        Nothing -> t2
 
 
 --
@@ -109,7 +109,7 @@ shiftL :: ((a -> CS r l m r1) -> CS r l m r1) -> CS r (ExtB l e (ContT r1)) m a
 shiftL = lreflect . ContT
 
 callccL :: ((a -> CS r1 (ExtB l e1 (ContT r)) m a1) -> CS r1 (ExtB l a (ContT r)) m a)
-           -> CS r1 (ExtB l e (ContT r)) m a                                          
+           -> CS r1 (ExtB l e (ContT r)) m a
 callccL e = lreflect $ ContT $ \k -> runContT (lreify  $ e (\x -> lreflect $ ContT $ \_ -> k x)) k
 
 
@@ -123,7 +123,7 @@ runStateL :: s -> CS r (ExtB l a (StateT s)) m a -> CS r l m (a, s)
 runStateL s m = runStateT (lreify m) s
 
 getL :: CS r (ExtB l e (StateT s)) m s
-getL = lreflect $ get
+getL = lreflect get
 
 putL :: s -> CS r (ExtB l e (StateT s)) m ()
 putL = lreflect . put
@@ -135,19 +135,19 @@ localL m = do s <- getL
               return r
 
 getsL :: (s -> b) -> CS r (ExtB l e (StateT s)) m b
-getsL f = getL >>= return . f 
+getsL f = f <$> getL
 
 shiftStateL :: (s -> CS r l m (a, s)) -> CS r (ExtB l e (StateT s)) m a
 shiftStateL = lreflect . StateT
 
 modifyL :: (s -> s) -> CS r (ExtB l e (StateT s)) m ()
-modifyL f = shiftStateL (\s -> return ((), f s)) 
+modifyL f = shiftStateL (\s -> return ((), f s))
 
 mmodifyL :: (a -> CS r l m a) -> CS r (ExtB l e (StateT a)) m ()
-mmodifyL f = shiftStateL (\s -> f s >>= \s' -> return ((),s'))
+mmodifyL f = shiftStateL (f >=> \s' -> return ((),s'))
 
 popStateL :: CS r (ExtB l e (StateT [a])) m (Maybe a)
-popStateL = shiftStateL (\s -> case s of
+popStateL = shiftStateL (\case
                                 []     -> return (Nothing, [])
                                 (t: q) -> return (Just t , q )
                         )
@@ -157,7 +157,7 @@ pushStateL :: a -> CS r (ExtB l e (StateT [a])) m ()
 pushStateL     = modifyL . (:)
 
 appendStateL :: a -> CS r (ExtB l e (StateT [a])) m ()
-appendStateL x = modifyL $ (++ [x])
+appendStateL x = modifyL (++ [x])
 
 --
 -- Except
@@ -200,7 +200,7 @@ instance (Monad m) => Applicative (Id m) where
  (<*>) = ap
 
 instance (Monad m) => Monad (Id m) where
- m >>= f = Id $ (rId m) >>= (rId . f)
+ m >>= f = Id $ rId m >>= (rId . f)
 
 instance MonadTrans Id where
  lift = Id

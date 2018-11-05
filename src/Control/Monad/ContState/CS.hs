@@ -1,4 +1,4 @@
-{-# LANGUAGE RankNTypes, MultiParamTypeClasses, FlexibleContexts, KindSignatures #-}
+{-# LANGUAGE RankNTypes, MultiParamTypeClasses, FlexibleContexts #-}
 -- | This module is inspired by the slides
 -- | /Monadic Reflection in Haskell/ by Andrzej Filinski
 -- | Available at <http://cs.ioc.ee/mpc-amast06/msfp/filinski-slides.pdf>
@@ -14,14 +14,14 @@ instance Functor (CS r l m) where
   fmap = liftM
 
 instance Applicative (CS r l m) where
- pure x     = CS $ ($ x)
- (<*>) = ap 
+ pure x     = CS ($ x)
+ (<*>) = ap
 
 instance Monad (CS r l m) where
  (CS m) >>= f = CS $ \k -> m (\a -> rCS (f a) k)
 
 instance MonadTrans (CS r l) where
- lift m = CS $ \k s -> m >>= (\a -> k a s)
+ lift m = CS $ \k s -> m >>= (`k` s)
 
 type UP r = ()
 
