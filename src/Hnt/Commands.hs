@@ -2,28 +2,27 @@ module Hnt.Commands where
 
 import Data.Nominal.Term
 
-import Text.ParserCombinators.Parsec
 import Hnt.Utils
+import Text.ParserCombinators.Parsec
 
 import Nominal.Rewriting
 
 import qualified Data.Nominal.FrsCtxt as FC
 
-import Control.Monad.Trans.Except
 import Control.Monad.State
+import Control.Monad.Trans.Except
 
-import qualified Data.Zipper as Z
 import Control.Monad.Zipper
+import qualified Data.Zipper as Z
 
 import Control.Monad
-
 
 import Control.Monad.ContState
 
 import System.IO
 
-
-help_string = "\
+help_string =
+  "\
 \\nSyntax\
 \\n======\
 \\n\
@@ -64,129 +63,106 @@ help_string = "\
 \\n context fc         : replace the freshness context by fc\
 \n\n"
 
-
-
 {-----------
 - COMMANDS -
 -----------}
-
-data ZipCmd = Move    (Z.Dir TermDir)
-            | ToRoot
-            | Update  (Term Integer Integer Integer)
-            | Rewrite (Rule Integer Integer Integer)
-  deriving (Eq,Ord,Show)
-
+data ZipCmd
+  = Move (Z.Dir TermDir)
+  | ToRoot
+  | Update (Term Integer Integer Integer)
+  | Rewrite (Rule Integer Integer Integer)
+  deriving (Eq, Ord, Show)
 
 instance ParsecRead ZipCmd where
-  parsecRead = (    (string "toroot" >> return ToRoot)
-                <|> (Move <$> (string "move"    >> space >> parsecRead   ))
-                <|> (Update <$> (string "update"  >> space >> parsecRead ))
-                <|> (Rewrite <$> (string "rewrite" >> space >> parsecRead))
-               ) <?> "update, move, update or rewrite"
+  parsecRead =
+    ((string "toroot" >> return ToRoot) <|>
+     (Move <$> (string "move" >> space >> parsecRead)) <|>
+     (Update <$> (string "update" >> space >> parsecRead)) <|>
+     (Rewrite <$> (string "rewrite" >> space >> parsecRead))) <?>
+    "update, move, update or rewrite"
 
-
-data ItfCmd = Help | Context (FC.FrsCtxt Integer Integer)
-  deriving (Eq,Ord,Show)
-
+data ItfCmd
+  = Help
+  | Context (FC.FrsCtxt Integer Integer)
+  deriving (Eq, Ord, Show)
 
 instance ParsecRead ItfCmd where
-  parsecRead = (    (string "help"    >> return Help)
-                <|> (Context <$> (string "context" >> spaces >> parsecRead))
-               ) <?> "interface command, type help"
+  parsecRead =
+    ((string "help" >> return Help) <|>
+     (Context <$> (string "context" >> spaces >> parsecRead))) <?>
+    "interface command, type help"
 
-
-data Cmd = ItfCmd ItfCmd | ZipCmd ZipCmd
-  deriving (Eq,Ord,Show)
-
+data Cmd
+  = ItfCmd ItfCmd
+  | ZipCmd ZipCmd
+  deriving (Eq, Ord, Show)
 
 instance ParsecRead Cmd where
-  parsecRead = (    (ItfCmd <$> parsecRead)
-                <|> (ZipCmd <$> parsecRead)
-               ) <?> "command"
-
-
+  parsecRead =
+    ((ItfCmd <$> parsecRead) <|> (ZipCmd <$> parsecRead)) <?> "command"
 
 {-----------------------
 - COMMAND INPUT/OUTPUT -
 -----------------------}
-
 output :: String -> CS r l IO ()
 output s = liftCS $ putStr s >> hFlush stdout
 
 input :: CS r l IO String
-input    = liftCS getLine
+input = liftCS getLine
 
 prompt :: (ParsecRead a) => CS r l IO String -> CS r l IO a
-prompt m = eitherUntilM (\e -> output ( "\nSyntax Error at " ++ show e
-                                       ++ "\nType help for help\n\n" )
-                        )
-                        (do m >>= output
-                            parseWithSpace parsecRead <$> input
-                        )
+prompt m =
+  eitherUntilM
+    (\e -> output ("\nSyntax Error at " ++ show e ++ "\nType help for help\n\n"))
+    (do m >>= output
+        parseWithSpace parsecRead <$> input)
 
-getZipCmd :: CS
-               r
-               (ExtB
-                  (ExtB l e1 (StateT (FC.FrsCtxt Integer Integer)))
-                  e
-                  (StateT (Z.Zipper (Term Integer Integer Integer) TermDir m1)))
-               IO
-               ZipCmd
-getZipCmd = do t <- prompt cmdPrompt
-               case t of
-                ZipCmd c -> return c
-                ItfCmd c -> case c of
-                             Help       -> output help_string >> getZipCmd
-                             Context fc -> inc (putL fc)    >> getZipCmd
- where
-  cmdPrompt = do term <- zip'term
-                 path <- zip'path
-                 ctxt <- inc getL
-                 return (    "\n  Path = " ++ Z.showPath path
-                          ++ "\n  Term = " ++ show term
-                          ++ "\n"
-                          ++ "\n  Ctxt = " ++ show ctxt
-                          ++ "\n\n=> "
-                        )
+getZipCmd ::
+     CS r (ExtB (ExtB l e1 (StateT (FC.FrsCtxt Integer Integer))) e (StateT (Z.Zipper (Term Integer Integer Integer) TermDir m1))) IO ZipCmd
+getZipCmd = do
+  t <- prompt cmdPrompt
+  case t of
+    ZipCmd c -> return c
+    ItfCmd c ->
+      case c of
+        Help -> output help_string >> getZipCmd
+        Context fc -> inc (putL fc) >> getZipCmd
+  where
+    cmdPrompt = do
+      term <- zip'term
+      path <- zip'path
+      ctxt <- inc getL
+      return
+        ("\n  Path = " ++
+         Z.showPath path ++
+         "\n  Term = " ++
+         show term ++ "\n" ++ "\n  Ctxt = " ++ show ctxt ++ "\n\n=> ")
 
 {-------------------
 - INTERACTIVE LOOP -
 -------------------}
-
-
-innerLoop :: ZipCmd
-             -> CS
-                  r
-                  (ExtB
-                     (ExtB (ExtB l e1 (ExceptT String)) e2 (StateT (FC.FrsCtxt Integer Integer)))
-                     e
-                     (StateT
-                        (Z.Zipper
-                           (Term Integer Integer Integer)
-                           TermDir
-                           (CS
-                              r
-                              (ExtB (ExtB l e1 (ExceptT String)) e2 (StateT (FC.FrsCtxt Integer Integer)))
-                              IO))))
-                  IO
-                  ()
-innerLoop (Move   dir) = zip'move dir
-innerLoop (Update t  ) = zip'update t
+innerLoop ::
+     ZipCmd
+  -> CS r (ExtB (ExtB (ExtB l e1 (ExceptT String)) e2 (StateT (FC.FrsCtxt Integer Integer))) e (StateT (Z.Zipper (Term Integer Integer Integer) TermDir (CS r (ExtB (ExtB l e1 (ExceptT String)) e2 (StateT (FC.FrsCtxt Integer Integer))) IO)))) IO ()
+innerLoop (Move dir) = zip'move dir
+innerLoop (Update t) = zip'update t
 innerLoop ToRoot = zip'toRoot
 innerLoop (Rewrite rl) = zip'term >>= inc . catchErrorRewrite rl >>= zip'update
- where catchErrorRewrite rl t = shiftStateL (\s -> catchErrorL (runStateL s $ rewrite rl t)
-                                                     (\e -> do output ("Rule didn't match : "
-                                                                         ++ e ++ "\n"
-                                                                      )
-                                                               return (t,s)
-                                                     )
-                                            )
-
-
+  where
+    catchErrorRewrite rl t =
+      shiftStateL
+        (\s ->
+           catchErrorL
+             (runStateL s $ rewrite rl t)
+             (\e -> do
+                output ("Rule didn't match : " ++ e ++ "\n")
+                return (t, s)))
 
 loop :: IO ()
-loop = Control.Monad.void (runCSIO $ runErrorL (
-          do CtxtTerm ctxt term <- prompt $ return (help_string ++ "\nEnter Term in Context : ")
-             runStateL ctxt $ runZipL term $ repeatM (getZipCmd >>= innerLoop)
-         )
-       )
+loop =
+  Control.Monad.void
+    (runCSIO $
+     runErrorL
+       (do CtxtTerm ctxt term <-
+             prompt $ return (help_string ++ "\nEnter Term in Context : ")
+           runStateL ctxt $ runZipL term $ repeatM (getZipCmd >>= innerLoop)))

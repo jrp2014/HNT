@@ -1,23 +1,25 @@
-{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, RankNTypes, ScopedTypeVariables, LambdaCase #-}
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, RankNTypes,
+  ScopedTypeVariables, LambdaCase #-}
+
 -- | This module is inspired by the slides
 -- | /Monadic Reflection in Haskell/ by Andrzej Filinski
 -- | Available at <http://cs.ioc.ee/mpc-amast06/msfp/filinski-slides.pdf>
 module Control.Monad.ContState.Lib where
 
+import Control.Monad.Cont
 import Control.Monad.ContState.CS
 import Control.Monad.Except
-import Control.Monad.State
-import Control.Monad.Cont
 import Control.Monad.List
-
+import Control.Monad.State
 
 import Data.Monoid
 
 --
 -- OUTPUT
 --
-
-newtype OutputT o m a = OutputT { runOutputT :: m (a, o) }
+newtype OutputT o m a = OutputT
+  { runOutputT :: m (a, o)
+  }
 
 instance (Monad m, Monoid o) => Functor (OutputT o m) where
   fmap = liftM
@@ -27,14 +29,14 @@ instance (Monad m, Monoid o) => Applicative (OutputT o m) where
   (<*>) = ap
 
 instance (Monad m, Monoid o) => Monad (OutputT o m) where
-  m >>= f = OutputT (do (a,o ) <- runOutputT m
-                        (b,o') <- runOutputT (f a)
-                        return (b, mappend o o')
-                    )
-
+  m >>= f =
+    OutputT
+      (do (a, o) <- runOutputT m
+          (b, o') <- runOutputT (f a)
+          return (b, mappend o o'))
 
 instance (Monoid o) => MonadTrans (OutputT o) where
-  lift m = OutputT $ m >>= \a -> return (a,mempty)
+  lift m = OutputT $ m >>= \a -> return (a, mempty)
 
 instance (Monad m, Monoid o) => MonadL (OutputT o) m
 
@@ -44,11 +46,9 @@ outs s = lreflect $ OutputT $ return ((), s)
 runOutputL :: (Monoid o) => CS r (ExtB l a (OutputT o)) m a -> CS r l m (a, o)
 runOutputL = runOutputT . lreify
 
-
 --
 -- LIST
 --
-
 instance (Monad m) => MonadL ListT m
 
 pickL :: [a] -> CS r (ExtB l e ListT) m a
@@ -57,12 +57,12 @@ pickL l = lreflect $ ListT $ return l
 runListL :: CS r (ExtB l a ListT) m a -> CS r l m [a]
 runListL = runListT . lreify
 
-
 --
 -- MAYBE
 --
-
-newtype MaybeT m a = MaybeT { runMaybeT :: m (Maybe a) }
+newtype MaybeT m a = MaybeT
+  { runMaybeT :: m (Maybe a)
+  }
 
 instance (Monad m) => Functor (MaybeT m) where
   fmap = liftM
@@ -72,31 +72,32 @@ instance (Monad m) => Applicative (MaybeT m) where
   (<*>) = ap
 
 instance (Monad m) => Monad (MaybeT m) where
-  b >>= f = MaybeT (runMaybeT b >>= \case 
-                                           Nothing -> return Nothing
-                                           Just a  -> runMaybeT (f a))
+  b >>= f =
+    MaybeT
+      (runMaybeT b >>= \case
+         Nothing -> return Nothing
+         Just a -> runMaybeT (f a))
 
 instance MonadTrans MaybeT where
- lift m = MaybeT $ Just <$> m
+  lift m = MaybeT $ Just <$> m
 
 instance Monad m => MonadL MaybeT m
 
 raiseL :: CS r (ExtB l e MaybeT) m a
-raiseL = lreflect $ MaybeT  $ return Nothing
+raiseL = lreflect $ MaybeT $ return Nothing
 
 runMaybeL :: CS r (ExtB l a MaybeT) m a -> CS r l m (Maybe a)
 runMaybeL = runMaybeT . lreify
 
 handleL :: CS r (ExtB l a MaybeT) m a -> CS r l m a -> CS r l m a
-handleL t1 t2 = runMaybeL t1 >>= \case
-                                        Just a  -> return a
-                                        Nothing -> t2
-
+handleL t1 t2 =
+  runMaybeL t1 >>= \case
+    Just a -> return a
+    Nothing -> t2
 
 --
 -- CONT
 --
-
 instance (Monad m) => MonadL (ContT s) m
 
 runContL :: CS r (ExtB l r1 (ContT r1)) m r1 -> CS r l m r1
@@ -108,15 +109,16 @@ resetL = inc . runContL
 shiftL :: ((a -> CS r l m r1) -> CS r l m r1) -> CS r (ExtB l e (ContT r1)) m a
 shiftL = lreflect . ContT
 
-callccL :: ((a -> CS r1 (ExtB l e1 (ContT r)) m a1) -> CS r1 (ExtB l a (ContT r)) m a)
-           -> CS r1 (ExtB l e (ContT r)) m a
-callccL e = lreflect $ ContT $ \k -> runContT (lreify  $ e (\x -> lreflect $ ContT $ \_ -> k x)) k
-
+callccL ::
+     ((a -> CS r1 (ExtB l e1 (ContT r)) m a1) -> CS r1 (ExtB l a (ContT r)) m a)
+  -> CS r1 (ExtB l e (ContT r)) m a
+callccL e =
+  lreflect $
+  ContT $ \k -> runContT (lreify $ e (\x -> lreflect $ ContT $ \_ -> k x)) k
 
 --
 -- STATE
 --
-
 instance (Monad m) => MonadL (StateT s) m
 
 runStateL :: s -> CS r (ExtB l a (StateT s)) m a -> CS r l m (a, s)
@@ -129,10 +131,11 @@ putL :: s -> CS r (ExtB l e (StateT s)) m ()
 putL = lreflect . put
 
 localL :: CS r (ExtB l e (StateT s)) m t -> CS r (ExtB l e (StateT s)) m t
-localL m = do s <- getL
-              r <- m
-              putL s
-              return r
+localL m = do
+  s <- getL
+  r <- m
+  putL s
+  return r
 
 getsL :: (s -> b) -> CS r (ExtB l e (StateT s)) m b
 getsL f = f <$> getL
@@ -144,17 +147,17 @@ modifyL :: (s -> s) -> CS r (ExtB l e (StateT s)) m ()
 modifyL f = shiftStateL (\s -> return ((), f s))
 
 mmodifyL :: (a -> CS r l m a) -> CS r (ExtB l e (StateT a)) m ()
-mmodifyL f = shiftStateL (f >=> \s' -> return ((),s'))
+mmodifyL f = shiftStateL (f >=> \s' -> return ((), s'))
 
 popStateL :: CS r (ExtB l e (StateT [a])) m (Maybe a)
-popStateL = shiftStateL (\case
-                                []     -> return (Nothing, [])
-                                (t: q) -> return (Just t , q )
-                        )
-
+popStateL =
+  shiftStateL
+    (\case
+       [] -> return (Nothing, [])
+       (t:q) -> return (Just t, q))
 
 pushStateL :: a -> CS r (ExtB l e (StateT [a])) m ()
-pushStateL     = modifyL . (:)
+pushStateL = modifyL . (:)
 
 appendStateL :: a -> CS r (ExtB l e (StateT [a])) m ()
 appendStateL x = modifyL (++ [x])
@@ -162,48 +165,50 @@ appendStateL x = modifyL (++ [x])
 --
 -- Except
 --
-
 instance Monad m => MonadL (ExceptT e) m
-
 
 runErrorL :: CS r (ExtB l a (ExceptT e)) m a -> CS r l m (Either e a)
 runErrorL = runExceptT . lreify
 
-
 throwErrorL :: err -> CS r (ExtB l e (ExceptT err)) m a
 throwErrorL = lreflect . throwError
 
-catchErrorL :: CS r (ExtB l a (ExceptT err)) m a
-                           -> (err -> CS r (ExtB l a (ExceptT err)) m a)
-                           -> CS r (ExtB l e (ExceptT err)) m a
+catchErrorL ::
+     CS r (ExtB l a (ExceptT err)) m a
+  -> (err -> CS r (ExtB l a (ExceptT err)) m a)
+  -> CS r (ExtB l e (ExceptT err)) m a
 catchErrorL m h = lreflect $ catchError (lreify m) (lreify . h)
 
 shiftErrorL :: CS r l m (Either e1 a) -> CS r (ExtB l e (ExceptT e1)) m a
 shiftErrorL = lreflect . ExceptT
 
-catchErrorLn :: Monad m =>
-                (CS r (ExtB l e (ExceptT err)) m1 b -> m (m a)) -> b -> (err -> b) -> m a
+catchErrorLn ::
+     Monad m
+  => (CS r (ExtB l e (ExceptT err)) m1 b -> m (m a))
+  -> b
+  -> (err -> b)
+  -> m a
 catchErrorLn f x h = join $ f $ catchErrorL (return x) (return . h)
 
 --
 -- Identity
 --
-
-newtype Id m a = Id { rId :: m a }
- deriving (Eq,Ord,Show,Read)
+newtype Id m a = Id
+  { rId :: m a
+  } deriving (Eq, Ord, Show, Read)
 
 instance (Monad m) => Functor (Id m) where
   fmap = liftM
 
 instance (Monad m) => Applicative (Id m) where
- pure  = Id . return
- (<*>) = ap
+  pure = Id . return
+  (<*>) = ap
 
 instance (Monad m) => Monad (Id m) where
- m >>= f = Id $ rId m >>= (rId . f)
+  m >>= f = Id $ rId m >>= (rId . f)
 
 instance MonadTrans Id where
- lift = Id
+  lift = Id
 
 instance (Monad m) => MonadL Id m
 
@@ -213,16 +218,12 @@ runId = rId . lreify
 --
 -- IO
 --
-
-runCSIO :: (forall r . CS r Pure IO a) -> IO a
+runCSIO :: (forall r. CS r Pure IO a) -> IO a
 runCSIO = runCSM
-
-
 
 --
 -- Inc
 --
-
 inc0 :: CS r l m a -> CS r l m a
 inc0 = id
 
@@ -235,60 +236,31 @@ inc2 = inc1 . inc1
 inc3 :: CS r l m a -> CS r (ExtB (ExtB (ExtB l e2 t2) e t) e1 t1) m a
 inc3 = inc2 . inc1
 
-inc4 :: CS r l m a
-        -> CS r (ExtB (ExtB (ExtB (ExtB l e2 t2) e3 t3) e t) e1 t1) m a
+inc4 ::
+     CS r l m a -> CS r (ExtB (ExtB (ExtB (ExtB l e2 t2) e3 t3) e t) e1 t1) m a
 inc4 = inc2 . inc2
 
-inc5 :: CS r l m a
-        -> CS r (ExtB (ExtB (ExtB (ExtB (ExtB l e3 t3) e4 t4) e t) e1 t1) e2 t2) m a
+inc5 ::
+     CS r l m a
+  -> CS r (ExtB (ExtB (ExtB (ExtB (ExtB l e3 t3) e4 t4) e t) e1 t1) e2 t2) m a
 inc5 = inc3 . inc2
 
-inc6 :: CS r l m a
-        -> CS
-             r
-             (ExtB (ExtB (ExtB (ExtB (ExtB (ExtB l e3 t3) e4 t4) e5 t5) e t) e1 t1) e2 t2)
-             m
-             a
+inc6 ::
+     CS r l m a
+  -> CS r (ExtB (ExtB (ExtB (ExtB (ExtB (ExtB l e3 t3) e4 t4) e5 t5) e t) e1 t1) e2 t2) m a
 inc6 = inc3 . inc3
 
-inc7 :: CS r l m a
-        -> CS
-             r
-             (ExtB
-                (ExtB (ExtB (ExtB (ExtB (ExtB (ExtB l e4 t4) e5 t5) e6 t6) e t) e1 t1) e2 t2)
-                e3
-                t3)
-             m
-             a
+inc7 ::
+     CS r l m a
+  -> CS r (ExtB (ExtB (ExtB (ExtB (ExtB (ExtB (ExtB l e4 t4) e5 t5) e6 t6) e t) e1 t1) e2 t2) e3 t3) m a
 inc7 = inc4 . inc3
 
-inc8 :: CS r l m a
-        -> CS
-             r
-             (ExtB
-                (ExtB
-                   (ExtB (ExtB (ExtB (ExtB (ExtB (ExtB l e4 t4) e5 t5) e6 t6) e7 t7) e t) e1 t1)
-                   e2
-                   t2)
-                e3
-                t3)
-             m
-             a
+inc8 ::
+     CS r l m a
+  -> CS r (ExtB (ExtB (ExtB (ExtB (ExtB (ExtB (ExtB (ExtB l e4 t4) e5 t5) e6 t6) e7 t7) e t) e1 t1) e2 t2) e3 t3) m a
 inc8 = inc4 . inc4
 
-inc9 :: CS r l m a
-        -> CS
-             r
-             (ExtB
-                (ExtB
-                   (ExtB
-                      (ExtB (ExtB (ExtB (ExtB (ExtB (ExtB l e5 t5) e6 t6) e7 t7) e8 t8) e t) e1 t1)
-                      e2
-                      t2)
-                   e3
-                   t3)
-                e4
-                t4)
-             m
-             a
+inc9 ::
+     CS r l m a
+  -> CS r (ExtB (ExtB (ExtB (ExtB (ExtB (ExtB (ExtB (ExtB (ExtB l e5 t5) e6 t6) e7 t7) e8 t8) e t) e1 t1) e2 t2) e3 t3) e4 t4) m a
 inc9 = inc5 . inc4

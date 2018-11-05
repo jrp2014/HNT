@@ -1,14 +1,13 @@
-module Data.Nominal.Env
-  where
+module Data.Nominal.Env where
 
-import qualified Data.Nominal.Perm as P
-import qualified Data.Set          as S
-import qualified Data.Nominal.Set  as NS
+import qualified Data.Nominal.Perm             as P
+import qualified Data.Nominal.Set              as NS
+import qualified Data.Set                      as S
 
-data Env a = Env { perm     :: P.Perm a
-                 , freshSet :: S.Set a
-                 }
-  deriving (Eq,Ord,Show,Read)
+data Env a = Env
+  { perm :: P.Perm a
+  , freshSet :: S.Set a
+  } deriving (Eq, Ord, Show, Read)
 
 empty :: (Ord a) => Env a
 empty = Env P.identity S.empty
@@ -22,7 +21,7 @@ image = P.image . perm
 imageInv :: (Ord a) => Env a -> a -> a
 imageInv = P.imageInv . perm
 
-swapList :: (Ord a) => Env a -> [(a,a)]
+swapList :: (Ord a) => Env a -> [(a, a)]
 swapList = P.toList . perm
 
 swapL :: (Ord a) => a -> a -> Env a -> Env a
@@ -36,4 +35,3 @@ isFresh a = S.member a . freshSet
 
 setFresh :: (Ord a) => Bool -> a -> Env a -> Env a
 setFresh b a (Env p s) = Env p (NS.setMember b a s)
-

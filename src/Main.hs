@@ -1,6 +1,6 @@
 module Main where
 
-import Hnt.Commands
+import           Hnt.Commands
 
 main :: IO ()
 main = loop
