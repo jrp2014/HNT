@@ -5,7 +5,7 @@
 module Control.Monad.ContState.Lib where
 
 import Control.Monad.ContState.CS
-import Control.Monad.Error
+import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Cont
 import Control.Monad.List
@@ -160,29 +160,29 @@ appendStateL :: a -> CS r (ExtB l e (StateT [a])) m ()
 appendStateL x = modifyL $ (++ [x])
 
 --
--- Error
+-- Except
 --
 
-instance (Monad m, Error e) => MonadL (ErrorT e) m
+instance Monad m => MonadL (ExceptT e) m
 
 
-runErrorL :: (Error e) => CS r (ExtB l a (ErrorT e)) m a -> CS r l m (Either e a)
-runErrorL = runErrorT . lreify
+runErrorL :: CS r (ExtB l a (ExceptT e)) m a -> CS r l m (Either e a)
+runErrorL = runExceptT . lreify
 
 
-throwErrorL :: (Error err) => err -> CS r (ExtB l e (ErrorT err)) m a
+throwErrorL :: err -> CS r (ExtB l e (ExceptT err)) m a
 throwErrorL = lreflect . throwError
 
-catchErrorL :: (Error err) => CS r (ExtB l a (ErrorT err)) m a
-                           -> (err -> CS r (ExtB l a (ErrorT err)) m a)
-                           -> CS r (ExtB l e (ErrorT err)) m a
+catchErrorL :: CS r (ExtB l a (ExceptT err)) m a
+                           -> (err -> CS r (ExtB l a (ExceptT err)) m a)
+                           -> CS r (ExtB l e (ExceptT err)) m a
 catchErrorL m h = lreflect $ catchError (lreify m) (lreify . h)
 
-shiftErrorL :: (Error e1) => CS r l m (Either e1 a) -> CS r (ExtB l e (ErrorT e1)) m a
-shiftErrorL = lreflect . ErrorT
+shiftErrorL :: CS r l m (Either e1 a) -> CS r (ExtB l e (ExceptT e1)) m a
+shiftErrorL = lreflect . ExceptT
 
-catchErrorLn :: (Monad m, Error err) =>
-                (CS r (ExtB l e (ErrorT err)) m1 b -> m (m a)) -> b -> (err -> b) -> m a
+catchErrorLn :: Monad m =>
+                (CS r (ExtB l e (ExceptT err)) m1 b -> m (m a)) -> b -> (err -> b) -> m a
 catchErrorLn f x h = join $ f $ catchErrorL (return x) (return . h)
 
 --

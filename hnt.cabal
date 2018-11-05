@@ -13,7 +13,7 @@ Maintainer:          Christophe Calves <Christophe.Calves@kcl.ac.uk>
 Build-Type:          Simple
 
 Library
- Build-Depends:      base, parsec, mtl, containers
+ Build-Depends:      base, parsec, mtl, containers, transformers
  Hs-Source-Dirs:     src
  Exposed-Modules:      Data.Zipper
                      , Data.Zipper.Zipper

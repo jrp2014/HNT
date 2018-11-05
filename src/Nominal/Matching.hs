@@ -9,7 +9,7 @@ import qualified Data.Nominal.FrsCtxt as FC
 
 import qualified Data.Set as Set
 
-import Control.Monad.Error
+import Control.Monad.Trans.Except
 import Control.Monad.State
 import Control.Monad.ContState
 
@@ -31,7 +31,7 @@ checkAtom ::
   -> CS                    
        r                   
        (ExtB               
-          (ExtB (ExtB l e11 (ErrorT [Char])) e1 t1) e (StateT (E.Env a)))
+          (ExtB (ExtB l e11 (ExceptT [Char])) e1 t1) e (StateT (E.Env a)))
        m                                                                 
        a                                                                 
 checkAtom a = do frs <- isFresh a
@@ -63,14 +63,14 @@ checkTerm ::
    -> CS                                                                 
         r                                                                
         (ExtB                                                            
-           (ExtB (ExtB l e (ErrorT [Char])) e1 t1) e11 (StateT (E.Env a)))
+           (ExtB (ExtB l e (ExceptT [Char])) e1 t1) e11 (StateT (E.Env a)))
         m                                                                 
         t)                                                                
   -> Term a cst var                                                       
   -> CS                                                                   
        r                                                                  
        (ExtB                                                              
-          (ExtB (ExtB l e (ErrorT [Char])) e1 t1) e11 (StateT (E.Env a))) 
+          (ExtB (ExtB l e (ExceptT [Char])) e1 t1) e11 (StateT (E.Env a))) 
        m                                                                  
        (Term a cst var)                                                   
 checkTerm frsConst = checkTerm'
@@ -93,14 +93,14 @@ core ::
    -> CS                                                                  
         r                                                                 
         (ExtB                                                             
-           (ExtB (ExtB l e11 (ErrorT [Char])) e1 t11) e (StateT (E.Env a)))
+           (ExtB (ExtB l e11 (ExceptT [Char])) e1 t11) e (StateT (E.Env a)))
         m                                                                  
         ())                                                                
   -> (t1                                                                   
       -> CS                                                                
            r                                                               
            (ExtB                                                           
-              (ExtB (ExtB l e11 (ErrorT [Char])) e1 t11) e (StateT (E.Env a)))
+              (ExtB (ExtB l e11 (ExceptT [Char])) e1 t11) e (StateT (E.Env a)))
            m                                                                  
            ())                                                                
   -> Term a t t1                                                              
@@ -108,7 +108,7 @@ core ::
   -> CS                                                                       
        r                                                                      
        (ExtB                                                                  
-          (ExtB (ExtB l e11 (ErrorT [Char])) e1 t11) e (StateT (E.Env a)))    
+          (ExtB (ExtB l e11 (ExceptT [Char])) e1 t11) e (StateT (E.Env a)))    
        m                                                                      
        ()                                                                     
 core fsubst frsConst = core'
@@ -148,19 +148,19 @@ core'run ::
    -> CS                                                                      
         r                                                                     
         (ExtB                                                                 
-           (ExtB (ExtB l e (ErrorT [Char])) e1 t11) () (StateT (E.Env a)))    
+           (ExtB (ExtB l e (ExceptT [Char])) e1 t11) () (StateT (E.Env a)))    
         m                                                                     
         ())                                                                   
   -> (t                                                                       
       -> CS                                                                   
            r                                                                  
            (ExtB                                                              
-              (ExtB (ExtB l e (ErrorT [Char])) e1 t11) () (StateT (E.Env a))) 
+              (ExtB (ExtB l e (ExceptT [Char])) e1 t11) () (StateT (E.Env a))) 
            m                                                                  
            ())                                                                
   -> Term a t1 t                                                              
   -> Term a t1 t                                                              
-  -> CS r (ExtB (ExtB l e (ErrorT [Char])) e1 t11) m ()                       
+  -> CS r (ExtB (ExtB l e (ExceptT [Char])) e1 t11) m ()                       
 core'run f g t u = runEnvL $ core f g t u
 
 
@@ -173,7 +173,7 @@ checkSatisfied ::
   -> CS                                                                       
        r                                                                      
        (ExtB                                                                  
-          (ExtB (ExtB l e11 (ErrorT [Char])) e1 (StateT (FC.FrsCtxt v a)))    
+          (ExtB (ExtB l e11 (ExceptT [Char])) e1 (StateT (FC.FrsCtxt v a)))    
           e                                                                   
           (StateT (E.Env a)))                                                 
        m                                                                      
@@ -185,7 +185,7 @@ checkSatisfied v = do b <- freshSet >>= inc . isInFrsCtxt v
 fsubst'error ::                                                               
   t                                                                           
   -> t1                                                                       
-  -> CS r (ExtB (ExtB (ExtB l e11 (ErrorT [Char])) e1 t11) e t2) m a          
+  -> CS r (ExtB (ExtB (ExtB l e11 (ExceptT [Char])) e1 t11) e t2) m a          
 fsubst'error _ _ = inc2 $ throwErrorL "Trying to Subst !"
 
 
@@ -203,7 +203,7 @@ alpha'solve ::
   (Show t1, Eq t1, Ord a, Ord t) =>                                           
   Term a t1 t                                                                 
   -> Term a t1 t                                                              
-  -> CS r (ExtB l e (ErrorT [Char])) m (FC.FrsCtxt t a)                       
+  -> CS r (ExtB l e (ExceptT [Char])) m (FC.FrsCtxt t a)                       
 alpha'solve t u = runFrsCtxtL $ do core'run fsubst'error addFrsCtxtEnv t u
                                    getL
 
@@ -212,7 +212,7 @@ alpha'check ::
   FC.FrsCtxt v a                                                              
   -> Term a t v                                                               
   -> Term a t v                                                               
-  -> CS r (ExtB l e (ErrorT [Char])) m ()                                     
+  -> CS r (ExtB l e (ExceptT [Char])) m ()                                     
 alpha'check frsctxt t u = runFrsCtxtL $ (putL frsctxt >> core'run fsubst'error checkSatisfied t u)
 
 
@@ -226,7 +226,7 @@ fsubst'solve ::
        (ExtB                                                                  
           (ExtB                                                               
              (ExtB                                                            
-                (ExtB l e (StateT (Subst v (Term a cst var)))) e1 (ErrorT [Char]))
+                (ExtB l e (StateT (Subst v (Term a cst var)))) e1 (ExceptT [Char]))
              e11                                                                  
              (StateT (FC.FrsCtxt var a)))                                         
           e2                                                                      
@@ -255,7 +255,7 @@ match'solve ::
   -> Term a t v                                                                   
   -> CS                                                                           
        r                                                                          
-       (ExtB l e (ErrorT [Char]))                                                 
+       (ExtB l e (ExceptT [Char]))                                                 
        m                                                                          
        (FC.FrsCtxt v a, Subst v (Term a t v))                                     
 match'solve ctxtp t u = shiftErrorL $ runSubstL $ runErrorL $ runFrsCtxtL (
@@ -276,7 +276,7 @@ fsubst'check ::
        (ExtB                                                                      
           (ExtB                                                                   
              (ExtB
-                (ExtB l e (StateT (Subst v (Term a cst var)))) e1 (ErrorT [Char]))
+                (ExtB l e (StateT (Subst v (Term a cst var)))) e1 (ExceptT [Char]))
              e11
              (StateT (FC.FrsCtxt var a)))
           e2
@@ -300,7 +300,7 @@ match'check ::
   (Ord a, Ord v, Show t, Eq t) =>
   (FC.FrsCtxt v a, Term a t v)
   -> (FC.FrsCtxt v a, Term a t v)
-  -> CS r (ExtB l e (ErrorT [Char])) m (Subst v (Term a t v))
+  -> CS r (ExtB l e (ExceptT [Char])) m (Subst v (Term a t v))
 match'check (ctxtp , t) (frsctxt , u) = shiftErrorL $ runSubstL $ runErrorL $ runFrsCtxtL (
   do putL frsctxt
      core'run (fsubst'solve ctxtp) checkSatisfied t u
@@ -311,5 +311,5 @@ match'check'empty ::
   (Eq t, Show t, Ord v, Ord a) =>
   Term a t v
   -> Term a t v
-  -> CS r (ExtB l e (ErrorT [Char])) m (Subst v (Term a t v))
+  -> CS r (ExtB l e (ExceptT [Char])) m (Subst v (Term a t v))
 match'check'empty t u = match'check (FC.empty , t) (FC.empty , u)

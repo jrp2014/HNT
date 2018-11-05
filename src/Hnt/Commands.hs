@@ -9,7 +9,7 @@ import Nominal.Rewriting
 
 import qualified Data.Nominal.FrsCtxt as FC
 
-import Control.Monad.Error
+import Control.Monad.Trans.Except
 import Control.Monad.State
 
 import qualified Data.Zipper as Z
@@ -156,7 +156,7 @@ innerLoop :: ZipCmd
              -> CS
                   r
                   (ExtB
-                     (ExtB (ExtB l e1 (ErrorT [Char])) e2 (StateT (FC.FrsCtxt Integer Integer)))
+                     (ExtB (ExtB l e1 (ExceptT [Char])) e2 (StateT (FC.FrsCtxt Integer Integer)))
                      e
                      (StateT
                         (Z.Zipper
@@ -164,7 +164,7 @@ innerLoop :: ZipCmd
                            TermDir
                            (CS
                               r
-                              (ExtB (ExtB l e1 (ErrorT [Char])) e2 (StateT (FC.FrsCtxt Integer Integer)))
+                              (ExtB (ExtB l e1 (ExceptT [Char])) e2 (StateT (FC.FrsCtxt Integer Integer)))
                               IO))))
                   IO
                   ()

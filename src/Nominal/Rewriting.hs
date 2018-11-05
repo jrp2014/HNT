@@ -7,7 +7,7 @@ import Text.ParserCombinators.Parsec
 import           Data.Nominal.Term
 import qualified Data.Nominal.FrsCtxt as FC
 
-import Control.Monad.Error
+import Control.Monad.Trans.Except
 import Control.Monad.State
 import Control.Monad.ContState
 
@@ -84,7 +84,7 @@ instance (Ord atm, Ord var, ParsecRead atm, ParsecRead cst, ParsecRead var) => P
 -- * Rewriting Functions
 
 rewrite :: (Ord t1, Ord t, Show t2, Eq t2) => Rule t1 t2 t -> Term t1 t2 t
-           -> CS r (ExtB (ExtB l e1 (ErrorT [Char])) e (StateT (FC.FrsCtxt t t1))) m (Term t1 t2 t)
+           -> CS r (ExtB (ExtB l e1 (ExceptT [Char])) e (StateT (FC.FrsCtxt t t1))) m (Term t1 t2 t)
 rewrite (Rule fc l r) t = do frs <- getL
                              s   <- inc $ match'check (fc , l) (frs , t)
                              substituteM (return . (substValuef s)) r
@@ -92,6 +92,6 @@ rewrite (Rule fc l r) t = do frs <- getL
 rewrite'empty :: (Ord t1, Ord t, Show t2, Eq t2) =>
                  Rule t1 t2 t
                  -> Term t1 t2 t
-                 -> CS r (ExtB l e1 (ErrorT [Char])) m (Term t1 t2 t)
+                 -> CS r (ExtB l e1 (ExceptT [Char])) m (Term t1 t2 t)
 rewrite'empty rl t = runFrsCtxtL $ rewrite rl t
 
